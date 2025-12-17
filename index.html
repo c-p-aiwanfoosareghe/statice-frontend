@@ -1,0 +1,124 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Downloader Frontend</title>
+    <style>
+        body { font-family: sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; }
+        input[type="url"], button { padding: 10px; margin-top: 10px; width: 100%; box-sizing: border-box; }
+        #status-display { margin-top: 20px; padding: 15px; border: 1px solid #ccc; background: #f9f9f9; }
+        .success { background: #e6ffe6; border-color: #0a0; }
+        .error { background: #ffe6e6; border-color: #a00; }
+    </style>
+</head>
+<body>
+
+    <h1>Public Content Downloader</h1>
+
+    <input type="url" id="url-input" placeholder="Enter public media URL (e.g., Facebook, Instagram)" required>
+    <button onclick="submitDownload()">Submit Download</button>
+
+    <div id="status-display">
+        Status: Ready to submit job.
+    </div>
+
+    <script>
+        // *** IMPORTANT: REPLACE WITH YOUR LIVE RENDER URL ***
+        const API_BASE_URL = "https://gemini-social-downloader.onrender.com/api/v1"; 
+
+        /**
+         * 1. Submits the URL to the backend.
+         */
+        async function submitDownload() {
+            const url = document.getElementById('url-input').value;
+            const statusDisplay = document.getElementById('status-display');
+            statusDisplay.className = '';
+            statusDisplay.innerHTML = 'Status: Submitting job...';
+
+            if (!url) {
+                statusDisplay.innerHTML = 'Status: Please enter a URL.';
+                return;
+            }
+
+            try {
+                // 1. Send POST request to the submit endpoint
+                const response = await fetch(`${API_BASE_URL}/download/submit`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    // Send the URL in the format your FastAPI endpoint expects
+                    body: JSON.stringify({ url: url }) 
+                });
+
+                const data = await response.json();
+
+                if (response.status === 202) {
+                    // Job accepted, start polling for status
+                    statusDisplay.innerHTML = `Job submitted. ID: ${data.job_id}. Starting status check...`;
+                    pollStatus(data.job_id);
+                } else if (response.status === 429) {
+                    // Rate Limiter triggered
+                    statusDisplay.className = 'error';
+                    statusDisplay.innerHTML = `Error 429: Too Many Requests. Please wait a minute before trying again.`;
+                } else {
+                    statusDisplay.className = 'error';
+                    statusDisplay.innerHTML = `Error ${response.status}: ${data.detail || data.message}`;
+                }
+
+            } catch (error) {
+                statusDisplay.className = 'error';
+                statusDisplay.innerHTML = `Network error: Could not connect to API.`;
+                console.error('Submission Error:', error);
+            }
+        }
+
+        /**
+         * 2. Polls the backend for the job status until completion.
+         */
+        function pollStatus(jobId) {
+            const statusDisplay = document.getElementById('status-display');
+            const pollInterval = 3000; // Check every 3 seconds
+
+            const checkStatus = async () => {
+                try {
+                    const response = await fetch(`${API_BASE_URL}/download/status/${jobId}`);
+                    const data = await response.json();
+                    
+                    statusDisplay.innerHTML = `Status: <b>${data.status}</b>. Progress: ${data.progress}%. ${data.message}`;
+
+                    if (data.status === 'COMPLETED') {
+                        statusDisplay.className = 'success';
+                        
+                        // Check if the download_path contains a public URL (e.g., S3 URL)
+                        if (data.download_path.startsWith('http')) {
+                            statusDisplay.innerHTML += `<br><a href="${data.download_path}" target="_blank">Download File</a>`;
+                        } else {
+                            // If it's a local path, use the file delivery endpoint
+                            const fileUrl = `${API_BASE_URL}/download/file/${jobId}`;
+                            statusDisplay.innerHTML += `<br><a href="${fileUrl}" target="_blank">Download File</a> (NOTE: This link may expire soon!)`;
+                        }
+                        
+                        clearInterval(intervalId); // Stop polling
+                        
+                    } else if (data.status === 'FAILED') {
+                        statusDisplay.className = 'error';
+                        clearInterval(intervalId); // Stop polling
+                    }
+
+                } catch (error) {
+                    console.error('Polling Error:', error);
+                    statusDisplay.className = 'error';
+                    statusDisplay.innerHTML = `Polling failed. Check console for details.`;
+                    clearInterval(intervalId); // Stop polling on error
+                }
+            };
+
+            // Start polling and keep the ID to stop it later
+            const intervalId = setInterval(checkStatus, pollInterval);
+            checkStatus(); // Run immediately for the first check
+        }
+    </script>
+</body>
+</html>
