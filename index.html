@@ -3,122 +3,229 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Downloader Frontend</title>
+    <title>MediaDownloader Pro</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/lucide@latest"></script>
     <style>
-        body { font-family: sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; }
-        input[type="url"], button { padding: 10px; margin-top: 10px; width: 100%; box-sizing: border-box; }
-        #status-display { margin-top: 20px; padding: 15px; border: 1px solid #ccc; background: #f9f9f9; }
-        .success { background: #e6ffe6; border-color: #0a0; }
-        .error { background: #ffe6e6; border-color: #a00; }
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap');
+        body { font-family: 'Inter', sans-serif; }
+        .glass { background: rgba(255, 255, 255, 0.95); backdrop-filter: blur(10px); }
     </style>
 </head>
-<body>
+<body class="bg-slate-50 min-h-screen text-slate-900">
 
-    <h1>Public Content Downloader</h1>
+    <div class="max-w-3xl mx-auto px-4 py-12">
+        <header class="text-center mb-12">
+            <div class="inline-flex items-center justify-center p-3 bg-blue-600 rounded-2xl text-white mb-4 shadow-lg shadow-blue-200">
+                <i data-lucide="download-cloud" class="w-8 h-8"></i>
+            </div>
+            <h1 class="text-4xl font-extrabold tracking-tight">MediaDownloader <span class="text-blue-600">Pro</span></h1>
+            <p class="text-slate-500 mt-2 text-lg">Download high-quality content from Instagram & Facebook instantly.</p>
+        </header>
 
-    <input type="url" id="url-input" placeholder="Enter public media URL (e.g., Facebook, Instagram)" required>
-    <button onclick="submitDownload()">Submit Download</button>
+        <div class="glass border border-slate-200 rounded-3xl p-6 shadow-xl shadow-slate-200/50 mb-8">
+            <div class="flex flex-col md:flex-row gap-3">
+                <div class="relative flex-1">
+                    <div class="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none text-slate-400">
+                        <i data-lucide="link" class="w-5 h-5"></i>
+                    </div>
+                    <input type="url" id="url-input" 
+                        class="block w-full pl-11 pr-4 py-4 bg-slate-100 border-transparent focus:bg-white focus:ring-2 focus:ring-blue-500 focus:border-transparent rounded-2xl transition-all outline-none" 
+                        placeholder="Paste Instagram or Facebook link here...">
+                </div>
+                <button onclick="submitDownload()" 
+                    class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-4 px-8 rounded-2xl transition-all transform active:scale-95 shadow-lg shadow-blue-200 flex items-center justify-center gap-2">
+                    <span>Analyze URL</span>
+                    <i data-lucide="arrow-right" class="w-5 h-5"></i>
+                </button>
+            </div>
+            <div id="error-msg" class="hidden text-red-500 text-sm mt-3 ml-2 flex items-center gap-1">
+                <i data-lucide="alert-circle" class="w-4 h-4"></i>
+                <span id="error-text"></span>
+            </div>
+        </div>
 
-    <div id="status-display">
-        Status: Ready to submit job.
+        <div id="status-card" class="hidden glass border border-slate-200 rounded-3xl p-8 mb-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
+            <div class="flex items-center justify-between mb-6">
+                <div>
+                    <h3 id="status-title" class="text-xl font-bold">Processing...</h3>
+                    <p id="status-desc" class="text-slate-500 text-sm">We're getting your file ready.</p>
+                </div>
+                <div id="spinner" class="animate-spin text-blue-600">
+                    <i data-lucide="loader-2" class="w-8 h-8"></i>
+                </div>
+            </div>
+
+            <div class="w-full bg-slate-200 rounded-full h-3 mb-2 overflow-hidden">
+                <div id="progress-bar" class="bg-blue-600 h-full w-0 transition-all duration-500 ease-out"></div>
+            </div>
+            <div class="flex justify-between text-xs font-semibold text-slate-400 uppercase tracking-wider">
+                <span id="progress-text">0%</span>
+                <span>Complete</span>
+            </div>
+        </div>
+
+        <div id="result-card" class="hidden bg-white border-2 border-green-100 rounded-3xl p-6 shadow-2xl shadow-green-100/50 mb-8 border-dashed">
+            <div class="flex items-start gap-6">
+                <div class="w-24 h-24 bg-slate-100 rounded-2xl flex items-center justify-center text-slate-400 shrink-0">
+                    <i data-lucide="file-video" class="w-12 h-12"></i>
+                </div>
+                <div class="flex-1 overflow-hidden">
+                    <h4 id="video-title" class="font-bold text-xl truncate text-slate-800">Video Filename</h4>
+                    <p id="video-meta" class="text-slate-500 text-sm mb-4">Size: Calculating...</p>
+                    <a id="download-btn" href="#" target="_blank" 
+                        class="inline-flex items-center gap-2 bg-green-600 hover:bg-green-700 text-white font-bold py-3 px-6 rounded-xl transition-all shadow-lg shadow-green-200">
+                        <i data-lucide="download" class="w-5 h-5"></i>
+                        Download Now
+                    </a>
+                </div>
+            </div>
+        </div>
+
+        <div id="history-section" class="mt-12 hidden">
+            <h3 class="text-lg font-bold text-slate-800 mb-4 flex items-center gap-2">
+                <i data-lucide="history" class="w-5 h-5"></i>
+                Recent Downloads
+            </h3>
+            <div id="history-list" class="space-y-3">
+                </div>
+        </div>
     </div>
 
     <script>
-        // *** IMPORTANT: REPLACE WITH YOUR LIVE RENDER URL ***
-        const API_BASE_URL = "https://gemini-social-downloader.onrender.com/api/v1"; 
+        // *** CONFIGURATION ***
+        const API_BASE_URL = "https://your-service-name.onrender.com/api/v1"; 
 
-        /**
-         * 1. Submits the URL to the backend.
-         */
+        // Initialize Icons
+        lucide.createIcons();
+
         async function submitDownload() {
-            const url = document.getElementById('url-input').value;
-            const statusDisplay = document.getElementById('status-display');
-            statusDisplay.className = '';
-            statusDisplay.innerHTML = 'Status: Submitting job...';
+            const urlInput = document.getElementById('url-input');
+            const url = urlInput.value;
+            const errorMsg = document.getElementById('error-msg');
+            const statusCard = document.getElementById('status-card');
+            const resultCard = document.getElementById('result-card');
 
-            if (!url) {
-                statusDisplay.innerHTML = 'Status: Please enter a URL.';
+            // Reset UI
+            errorMsg.classList.add('hidden');
+            resultCard.classList.add('hidden');
+            
+            if (!url.includes('instagram.com') && !url.includes('facebook.com') && !url.includes('fb.watch')) {
+                showError("Please enter a valid Instagram or Facebook URL.");
                 return;
             }
 
+            statusCard.classList.remove('hidden');
+            updateStatusUI('PENDING', 0, 'Submitting job to server...');
+
             try {
-                // 1. Send POST request to the submit endpoint
                 const response = await fetch(`${API_BASE_URL}/download/submit`, {
                     method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json'
-                    },
-                    // Send the URL in the format your FastAPI endpoint expects
+                    headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ url: url }) 
                 });
 
                 const data = await response.json();
 
-                if (response.status === 202) {
-                    // Job accepted, start polling for status
-                    statusDisplay.innerHTML = `Job submitted. ID: ${data.job_id}. Starting status check...`;
+                if (response.ok) {
                     pollStatus(data.job_id);
-                } else if (response.status === 429) {
-                    // Rate Limiter triggered
-                    statusDisplay.className = 'error';
-                    statusDisplay.innerHTML = `Error 429: Too Many Requests. Please wait a minute before trying again.`;
                 } else {
-                    statusDisplay.className = 'error';
-                    statusDisplay.innerHTML = `Error ${response.status}: ${data.detail || data.message}`;
+                    showError(data.detail || "Submission failed.");
+                    statusCard.classList.add('hidden');
                 }
-
             } catch (error) {
-                statusDisplay.className = 'error';
-                statusDisplay.innerHTML = `Network error: Could not connect to API.`;
-                console.error('Submission Error:', error);
+                showError("Connection error. Is the backend running?");
+                statusCard.classList.add('hidden');
             }
         }
 
-        /**
-         * 2. Polls the backend for the job status until completion.
-         */
         function pollStatus(jobId) {
-            const statusDisplay = document.getElementById('status-display');
-            const pollInterval = 3000; // Check every 3 seconds
-
-            const checkStatus = async () => {
+            const interval = setInterval(async () => {
                 try {
                     const response = await fetch(`${API_BASE_URL}/download/status/${jobId}`);
                     const data = await response.json();
-                    
-                    statusDisplay.innerHTML = `Status: <b>${data.status}</b>. Progress: ${data.progress}%. ${data.message}`;
+
+                    updateStatusUI(data.status, data.progress, data.message);
 
                     if (data.status === 'COMPLETED') {
-                        statusDisplay.className = 'success';
-                        
-                        // Check if the download_path contains a public URL (e.g., S3 URL)
-                        if (data.download_path.startsWith('http')) {
-                            statusDisplay.innerHTML += `<br><a href="${data.download_path}" target="_blank">Download File</a>`;
-                        } else {
-                            // If it's a local path, use the file delivery endpoint
-                            const fileUrl = `${API_BASE_URL}/download/file/${jobId}`;
-                            statusDisplay.innerHTML += `<br><a href="${fileUrl}" target="_blank">Download File</a> (NOTE: This link may expire soon!)`;
-                        }
-                        
-                        clearInterval(intervalId); // Stop polling
-                        
+                        clearInterval(interval);
+                        showResult(data, jobId);
+                        saveToHistory(data);
                     } else if (data.status === 'FAILED') {
-                        statusDisplay.className = 'error';
-                        clearInterval(intervalId); // Stop polling
+                        clearInterval(interval);
+                        showError(data.message);
                     }
-
-                } catch (error) {
-                    console.error('Polling Error:', error);
-                    statusDisplay.className = 'error';
-                    statusDisplay.innerHTML = `Polling failed. Check console for details.`;
-                    clearInterval(intervalId); // Stop polling on error
+                } catch (e) {
+                    clearInterval(interval);
+                    showError("Lost connection to server.");
                 }
-            };
-
-            // Start polling and keep the ID to stop it later
-            const intervalId = setInterval(checkStatus, pollInterval);
-            checkStatus(); // Run immediately for the first check
+            }, 2000);
         }
+
+        function updateStatusUI(status, progress, message) {
+            document.getElementById('status-title').innerText = status.replace('_', ' ');
+            document.getElementById('status-desc').innerText = message;
+            document.getElementById('progress-bar').style.width = `${progress}%`;
+            document.getElementById('progress-text').innerText = `${progress}%`;
+        }
+
+        function showResult(data, jobId) {
+            document.getElementById('status-card').classList.add('hidden');
+            const resultCard = document.getElementById('result-card');
+            resultCard.classList.remove('hidden');
+
+            const meta = data.metadata || {};
+            document.getElementById('video-title').innerText = meta.filename || "Your Download";
+            
+            const sizeMB = meta.size_bytes ? (meta.size_bytes / (1024 * 1024)).toFixed(2) : '??';
+            document.getElementById('video-meta').innerText = `Source: ${meta.source || 'Social Media'} • Size: ${sizeMB} MB`;
+
+            const btn = document.getElementById('download-btn');
+            // If download_path is a URL, use it. Otherwise, use our delivery endpoint.
+            btn.href = data.download_path.startsWith('http') ? data.download_path : `${API_BASE_URL}/download/file/${jobId}`;
+        }
+
+        function showError(msg) {
+            const errorMsg = document.getElementById('error-msg');
+            document.getElementById('error-text').innerText = msg;
+            errorMsg.classList.remove('hidden');
+        }
+
+        function saveToHistory(data) {
+            const history = JSON.parse(localStorage.getItem('dl_history') || '[]');
+            history.unshift({
+                filename: data.metadata?.filename || "Video",
+                date: new Date().toLocaleDateString(),
+                source: data.metadata?.source
+            });
+            localStorage.setItem('dl_history', JSON.stringify(history.slice(0, 5)));
+            renderHistory();
+        }
+
+        function renderHistory() {
+            const history = JSON.parse(localStorage.getItem('dl_history') || '[]');
+            const list = document.getElementById('history-list');
+            const section = document.getElementById('history-section');
+            
+            if (history.length === 0) return;
+            section.classList.remove('hidden');
+            list.innerHTML = history.map(item => `
+                <div class="bg-white p-4 rounded-2xl border border-slate-200 flex items-center justify-between">
+                    <div class="flex items-center gap-3">
+                        <div class="w-10 h-10 bg-slate-100 rounded-xl flex items-center justify-center text-slate-400">
+                             <i data-lucide="check-circle-2" class="w-5 h-5 text-green-500"></i>
+                        </div>
+                        <div>
+                            <p class="font-bold text-sm truncate w-40 md:w-64">${item.filename}</p>
+                            <p class="text-xs text-slate-400">${item.source} • ${item.date}</p>
+                        </div>
+                    </div>
+                </div>
+            `).join('');
+            lucide.createIcons();
+        }
+
+        renderHistory();
     </script>
 </body>
 </html>
